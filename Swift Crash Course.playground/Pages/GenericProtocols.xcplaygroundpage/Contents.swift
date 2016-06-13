@@ -1,10 +1,10 @@
 import Swift
-//: [Previous](@previous)
+//: [<- Back to Protocol Extensions](ProtocolExtensions)
 /*:
  # Generic Protocols
  *Consider the following example.*
  
- I would like to create a generic way to cache data. I would also like to fetch that data transparently; i.e. I would like to have one method call that will fetch cached data if it exists or fetch from a remote location if not.
+ I would like to create a generic way to cache data. I would also like to fetch that data transparently; i.e. I would like to have one method that will fetch cached data if it exists or fetch from a remote location if not.
  
  This can be achieved using a generic class:
  */
@@ -41,7 +41,7 @@ class MyDataStoreClass: DataStoreClass<MyData> {
  
  One way to solve this issue is to use a protocol with a default implementation.
  */
-protocol DataStoreProtocol: class {
+protocol DataStorable: class {
 
     associatedtype DataType
     var data: DataType? { get set }
@@ -49,7 +49,7 @@ protocol DataStoreProtocol: class {
     func fetchRemotely(completion: (DataType) -> ())
 }
 //: The implementation of `fetch(_:)` is the same as before.
-extension DataStoreProtocol {
+extension DataStorable {
 
     func fetch(completion: (DataType) -> ()) {
         if let data = data {
@@ -60,7 +60,7 @@ extension DataStoreProtocol {
     }
 }
 //: Now when creating a specific data store we are forced implement the `fetchRemotely(_:)` method otherwise we will get a compiler error.
-class MyDataStoreImpl: DataStoreProtocol {
+class MyDataStore: DataStorable {
 
     var data: MyData?
     func fetchRemotely(completion: (MyData) -> ()) {
@@ -73,9 +73,9 @@ class MyDataStoreImpl: DataStoreProtocol {
  Generic protocols have a flaw of their own. Once they contain an associated type they can no longer be referenced directly.
  */
 // compiler error
-//let p: DataStoreProtocol = MyDataStoreImpl()
+//let p: DataStorable = MyDataStore()
 //: You may now only pass in the protocol as a generic constraint.
-func doSomething<T: DataStoreProtocol>(dataStore: T) {
+func doSomething<T: DataStorable>(dataStore: T) {
     dataStore.fetch { _ in }
 }
 /*:
@@ -108,7 +108,7 @@ EncapsulatingExample().printData()
  ## Creating Type Erasure
  Implementing type erasure is quite straight forward. You must create a wrapper that forwards all methods to a generic protocol.
  */
-class AnyDataStore<DataType>: DataStoreProtocol {
+class AnyDataStore<DataType>: DataStorable {
 
     private let _fetch: ((DataType) -> ()) -> ()
     private let _fetchRemotely: ((DataType) -> ()) -> ()
@@ -120,7 +120,7 @@ class AnyDataStore<DataType>: DataStoreProtocol {
         get { return getData() }
     }
 
-    init<T: DataStoreProtocol where T.DataType == DataType>(_ dataStore: T) {
+    init<T: DataStorable where T.DataType == DataType>(_ dataStore: T) {
         _fetch = dataStore.fetch
         _fetchRemotely = dataStore.fetchRemotely
         setData = { data in dataStore.data = data }
@@ -138,7 +138,7 @@ class AnyDataStore<DataType>: DataStoreProtocol {
 /*:
  Type erasure isn't pretty especially with a property but now we can use polymorphism with a generic protocol which allows us to change the implementation without changing the interface.
  */
-class HTTPDataStore: DataStoreProtocol {
+class HTTPDataStore: DataStorable {
     var data: MyData?
 
     func fetchRemotely(completion: (MyData) -> ()) {
@@ -147,7 +147,7 @@ class HTTPDataStore: DataStoreProtocol {
     }
 }
 
-class FileDataStore: DataStoreProtocol {
+class FileDataStore: DataStorable {
     var data: MyData?
 
     func fetchRemotely(completion: (MyData) -> ()) {
@@ -178,7 +178,7 @@ PolymorphismExample(dataStore: AnyDataStore(FileDataStore())).doSomething()
  ## Testing
  We can also use type erasure to create one mock for any DataType.
  */
-class MockDataStore<DataType>: DataStoreProtocol {
+class MockDataStore<DataType>: DataStorable {
 
     var data: DataType?
 
@@ -196,3 +196,4 @@ let mockedDataStore = MockDataStore<MyData>()
 let sut = PolymorphismExample(dataStore: AnyDataStore(mockedDataStore))
 sut.doSomething()
 XCTAssert(mockedDataStore.didFetch)
+//: We've looked into some Swift topics in depth. The [next chapter](SwiftySwift) focuses on how to write Swifty Swift instead of simply translating Objective-C to Swift.

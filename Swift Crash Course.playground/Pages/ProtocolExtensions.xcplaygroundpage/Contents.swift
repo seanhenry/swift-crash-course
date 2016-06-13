@@ -158,4 +158,4 @@ extension LoginViewController: EmailAddressValidator {}
 extension RegisterViewController: EmailAddressValidator {}
 LoginViewController().isEmailAddressValid("badEmail")
 RegisterViewController().isEmailAddressValid("good@email.com")
-
+//: Protocols also support generics. They behave differently to generic classes and structs. [Next: Generic Protocols ->](GenericProtocols)

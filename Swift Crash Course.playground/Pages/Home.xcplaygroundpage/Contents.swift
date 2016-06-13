@@ -148,11 +148,11 @@ While hasn't changed much but `do-while` becomes `repeat-while`:
 */
 var i = 1
 while i == 1 {
-  i--
+  i -= 1
 }
 
 repeat {
-  i++
+  i += 1
 } while i == 0
 
 /*:
