@@ -21,7 +21,7 @@ import Foundation
  ### Avoiding nil
  Sometimes nil is difficult to avoid. Consider the following example:
  
- - example: I would like to create a type to record exactly 10 seconds of audio from the microphone. I would also like to start recording after a user defined amount of time instead of starting immediately.
+ - example: I would like to create a program to record exactly 10 seconds of audio from the microphone. I would also like to start recording after a user defined amount of time instead of starting immediately.
  
  It feels like we need optionals here. One for the file to record to and one for each countdown timers.
  */
@@ -56,24 +56,20 @@ extension OptionalAudioRecorder {
     }
 }
 /*:
- Enums provide a way to eliminate optionals.
- 
- This example is quite complex but note that there are now no optionals and therefore no ambiguity of the state of the recorder. The `State` enum not only defines the state but also holds information relavant to that state *and only that state*.
- 
- Programming in this way will define the behaviour of your code and make it robust and easier to understand. Unambiguous behaviour also means fewer unit tests because you no longer have to test those ambiguous edge cases. 🎉
+ The following example uses and enum to provide a way to eliminate optionals.
  */
 class BetterAudioRecorder {
 
     private enum State {
-        case Unloaded
+        case Idle
         case WaitingToRecord(NSURL, CountdownTimer)
         case Recording(NSURL, CountdownTimer)
     }
 
-    private var state: State = .Unloaded
+    private var state: State = .Idle
 
     func startRecording(to file: NSURL) {
-        guard case .Unloaded = state else {
+        guard case .Idle = state else {
             cancel()
             return
         }
@@ -82,7 +78,7 @@ class BetterAudioRecorder {
     }
 
     private func startRecording() {
-        if case .WaitingToRecord(let file, _) = state {
+        if case let .WaitingToRecord(file, _) = state {
             state = .Recording(file, CountdownTimer(seconds: 10))
             // start recording
         }
@@ -90,11 +86,11 @@ class BetterAudioRecorder {
 
     func cancel() {
         switch state {
-        case .WaitingToRecord(let file, let countdown):
+        case let .WaitingToRecord(file, countdown):
             removeFile(file)
             stopCountdown(countdown)
             break
-        case .Recording(let file, let countdown):
+        case let .Recording(file, countdown):
             removeFile(file)
             stopCountdown(countdown)
             stopRecording()
@@ -107,4 +103,113 @@ class BetterAudioRecorder {
     private func removeFile(file: NSURL) {}
     private func stopCountdown(countdown: CountdownTimer) {}
     private func stopRecording() {}
+}
+
+/*:
+ This example is quite complex but note that there are now no optionals and therefore no ambiguity of the state of the recorder. The `State` enum not only defines the state but also holds information relavant to that state *and only that state*.
+
+ Programming in this way will define the behaviour of your code and make it robust and easier to understand. Unambiguous behaviour also means fewer unit tests because you no longer have to test those ambiguous edge cases. 🎉
+ */
+
+/*:
+ ## Embrace value types
+ Another incredibly important feature of Swift. Value types offer great benefits as described in an [earlier chapter](ValueTypes) but when should you use them?
+ 
+ ### Value Type
+ - Where comparing state makes sense.
+ - No asynchronous behaviour.
+ - State is not shared with other objects.
+ 
+ ### Reference Type
+ - Where comparing instances makes sense.
+ - Behaviour is asynchronous.
+ - State is shared between other objects.
+ 
+ ### Examples of value types:
+ - Models objects.
+ - URL request builder.
+ - JSON parser.
+ 
+ ### Examples of reference types:
+ - Feature flags.
+ - Network operations.
+ - VIPER components.
+ */
+/*:
+ ## Naming
+ The language we use to name properties and methods has become a real focus for Swift 3. These are likely to change over time so read about them [here](https://swift.org/documentation/api-design-guidelines/).
+ 
+ Naming is also important when bridging from Objective-C. [This article](https://developer.apple.com/library/ios/documentation/Swift/Conceptual/BuildingCocoaApps/MixandMatch.html) describes how to optimise name Objective-C code for swift. See `NS_SWIFT_NAME`, `NS_SWIFT_UNAVAILABLE`, and `NS_REFINED_FOR_SWIFT`.
+
+ ## Overloading and Default Arguments
+ Swift offers these new features language features and we should take advantage of them when designing our APIs. For example, Objective-C animation APIs have the following methods:
+ 
+ `- (void)animateWithDuration:animations:`
+ 
+ `- (void)animateWithDuration:animations:completion:`
+ 
+ Now in Swift we should write:
+ */
+func animate(forSeconds duration: Double, animations: () -> (), completion: ((Bool) -> ())? = nil) {
+
+}
+//: We can still call the method in all the same ways as before.
+animate(forSeconds: 1, animations: {
+
+})
+
+animate(forSeconds: 1, animations: {
+
+}, completion: { _ in
+
+})
+/*:
+ ## Playing nicely with Objective-C
+ Another challenge we face is writing Swift which can still bridge to Objective-C.
+ 
+ The solution is simple. **Never** compromise Swift code for the sake of bridging to Objective-C. **Always** use Swift to its full potential even if it can't bridge to Objective-C.
+ 
+ If you find yourself in a position where you must bridge Swifty Swift to Objective-C then write a simple Objective-C compatible wrapper.
+ */
+enum Result {
+    case Success(String)
+    case Failure(String)
+}
+
+class Swifty {
+
+    func doSomething(result: Result -> ()) {
+        result(.Success("Success!"))
+    }
+}
+//: Create a wrapper for Objective-C if you need one.
+class Wrapped: NSObject {
+    let swifty = Swifty()
+
+    func doSomething(result: (String?, String?) -> ()) {
+        swifty.doSomething { r in
+            switch r {
+            case .Success(let string):
+                result(string, nil)
+            case .Failure(let error):
+                result(nil, error)
+            }
+        }
+    }
+}
+/*:
+ Similarly if you find yourself needing to access a value type in Objective-C you could write a wrapper for that too. You would lose value semantics but at least your Swift code can still take advantage.
+ */
+struct SwiftyStruct {
+    var value = "hi"
+}
+
+class WrappedStruct: NSObject {
+
+    var swifty = SwiftyStruct()
+
+    var value: String {
+        set { swifty.value = newValue }
+        get { return swifty.value }
+    }
 }

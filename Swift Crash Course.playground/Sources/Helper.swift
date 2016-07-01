@@ -5,5 +5,9 @@ public func XCTAssert(@autoclosure condition: () -> (Bool)) -> String {
 }
 
 public struct CountdownTimer {
-    let seconds: Double
+    public let seconds: Double
+
+    public init(seconds: Double) {
+        self.seconds = seconds
+    }
 }

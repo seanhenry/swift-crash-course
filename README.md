@@ -6,7 +6,9 @@ A playground providing a crash course in Swift. Aimed at Objective-C developers 
 - Value Types
 - Collections
 - Protocol Extensions
+- Generic Protocols
+- Swifty Swift
   
 ## Compatibility
-Xcode 7.2.1, Swift 2.1
+Xcode 7.3, Swift 2.2
   
